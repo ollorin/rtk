@@ -40,21 +40,29 @@ With rtk: **~45,000 tokens** → **70% reduction**
 
 ## Installation
 
+### Quick Install (Linux/macOS)
+```bash
+curl -fsSL https://raw.githubusercontent.com/pszymkowiak/rtk/main/install.sh | sh
+```
+
 ### Homebrew (macOS)
 ```bash
 brew tap pszymkowiak/rtk
 brew install rtk
 ```
 
-### Script (Linux/macOS)
-```bash
-curl -fsSL https://raw.githubusercontent.com/pszymkowiak/rtk/main/install.sh | sh
-```
-
 ### Cargo
 ```bash
 cargo install rtk
 ```
+
+### Manual Download
+Download binaries from [Releases](https://github.com/pszymkowiak/rtk/releases):
+- macOS: `rtk-x86_64-apple-darwin.tar.gz` / `rtk-aarch64-apple-darwin.tar.gz`
+- Linux: `rtk-x86_64-unknown-linux-gnu.tar.gz` / `rtk-aarch64-unknown-linux-gnu.tar.gz`
+- Windows: `rtk-x86_64-pc-windows-msvc.zip`
+- Debian/Ubuntu: `rtk_*.deb`
+- Fedora/RHEL: `rtk-*.rpm`
 
 ## Quick Start
 
@@ -100,6 +108,9 @@ rtk log app.log                 # Deduplicated logs
 rtk json config.json            # Structure without values
 rtk deps                        # Dependencies summary
 rtk env -f AWS                  # Filtered env vars
+rtk gain                        # Token savings stats
+rtk gain --graph                # With ASCII graph
+rtk gain --history              # With command history
 ```
 
 ### Containers
