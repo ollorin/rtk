@@ -4,6 +4,7 @@ mod ccusage;
 mod config;
 mod container;
 mod curl_cmd;
+mod deno_cmd;
 mod deps;
 mod diff_cmd;
 mod discover;
@@ -24,6 +25,7 @@ mod log_cmd;
 mod ls;
 mod next_cmd;
 mod npm_cmd;
+mod nx_cmd;
 mod parser;
 mod playwright_cmd;
 mod pnpm_cmd;
@@ -32,6 +34,7 @@ mod prisma_cmd;
 mod read;
 mod runner;
 mod summary;
+mod supabase_cmd;
 mod tracking;
 mod tree;
 mod tsc_cmd;
@@ -460,6 +463,27 @@ enum Commands {
         /// Minimum occurrences to include in report
         #[arg(long, default_value = "1")]
         min_occurrences: usize,
+    },
+
+    /// Deno commands with compact output (test, lint, check, task)
+    Deno {
+        /// Deno arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Nx monorepo commands with compact output
+    Nx {
+        /// Nx arguments (e.g., test api, build player-web)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Supabase CLI commands with compact output
+    Supabase {
+        /// Supabase arguments (e.g., start, status, db push)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 
     /// Execute command without filtering but track usage
@@ -1239,6 +1263,18 @@ fn main() -> Result<()> {
                     npm_cmd::run(&args, cli.verbose, cli.skip_env)?;
                 }
             }
+        }
+
+        Commands::Deno { args } => {
+            deno_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Nx { args } => {
+            nx_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Supabase { args } => {
+            supabase_cmd::run(&args, cli.verbose)?;
         }
 
         Commands::Proxy { args } => {
