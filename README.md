@@ -4,9 +4,32 @@
 
 **High-performance CLI proxy to minimize LLM token consumption.**
 
-[Website](https://www.rtk-ai.app) | [GitHub](https://github.com/rtk-ai/rtk) | [Install](INSTALL.md)
+[Website](https://www.rtk-ai.app) | [GitHub](https://github.com/rtk-ai/rtk) | [Install](INSTALL.md) | [Fork Install](INSTALL_FORK.md)
 
 rtk filters and compresses command outputs before they reach your LLM context, saving 60-90% of tokens on common operations.
+
+---
+
+## 🎁 Enhanced Fork - Quick Install (macOS)
+
+**This fork adds Supabase + Nx + Deno support** for 2,210 additional commands (~500K-1M tokens/month savings).
+
+```bash
+# Install Rust + Build + Configure (one command)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+  source ~/.cargo/env && \
+  git clone https://github.com/ollorin/rtk.git && \
+  cd rtk && cargo build --release && \
+  mkdir -p ~/.local/bin && cp target/release/rtk ~/.local/bin/ && \
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && \
+  ~/.local/bin/rtk init -g --auto-patch && \
+  echo "✅ Done! Restart Claude Code and use: rtk deno test, rtk nx build, rtk supabase start"
+```
+
+**New commands:** `rtk supabase` | `rtk nx` | `rtk deno`
+**Details:** See [INSTALL_FORK.md](INSTALL_FORK.md) for full guide.
+
+---
 
 ## ⚠️ Important: Name Collision Warning
 
