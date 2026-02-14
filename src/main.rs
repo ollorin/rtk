@@ -12,9 +12,12 @@ mod display_helpers;
 mod env_cmd;
 mod filter;
 mod find_cmd;
+mod format_cmd;
 mod gain;
 mod gh_cmd;
 mod git;
+mod go_cmd;
+mod golangci_cmd;
 mod grep_cmd;
 mod init;
 mod json_cmd;
@@ -27,11 +30,14 @@ mod next_cmd;
 mod npm_cmd;
 mod nx_cmd;
 mod parser;
+mod pip_cmd;
 mod playwright_cmd;
 mod pnpm_cmd;
 mod prettier_cmd;
 mod prisma_cmd;
+mod pytest_cmd;
 mod read;
+mod ruff_cmd;
 mod runner;
 mod summary;
 mod supabase_cmd;
@@ -387,6 +393,13 @@ enum Commands {
         args: Vec<String>,
     },
 
+    /// Universal format checker (prettier, black, ruff format)
+    Format {
+        /// Formatter arguments (auto-detects formatter from project files)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
     /// Playwright E2E tests with compact output
     Playwright {
         /// Playwright arguments
@@ -491,6 +504,41 @@ enum Commands {
         /// Command and arguments to execute
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<OsString>,
+    },
+
+    /// Ruff linter/formatter with compact output
+    Ruff {
+        /// Ruff arguments (e.g., check, format --check)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Pytest test runner with compact output
+    Pytest {
+        /// Pytest arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Pip package manager with compact output (auto-detects uv)
+    Pip {
+        /// Pip arguments (e.g., list, outdated, install)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Go commands with compact output
+    Go {
+        #[command(subcommand)]
+        command: GoCommands,
+    },
+
+    /// golangci-lint with compact output
+    #[command(name = "golangci-lint")]
+    GolangciLint {
+        /// golangci-lint arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
 }
 
@@ -748,6 +796,31 @@ enum CargoCommands {
         args: Vec<String>,
     },
     /// Passthrough: runs any unsupported cargo subcommand directly
+    #[command(external_subcommand)]
+    Other(Vec<OsString>),
+}
+
+#[derive(Subcommand)]
+enum GoCommands {
+    /// Run tests with compact output (90% token reduction via JSON streaming)
+    Test {
+        /// Additional go test arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Build with compact output (errors only)
+    Build {
+        /// Additional go build arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Vet with compact output
+    Vet {
+        /// Additional go vet arguments
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+    /// Passthrough: runs any unsupported go subcommand directly
     #[command(external_subcommand)]
     Other(Vec<OsString>),
 }
@@ -1124,6 +1197,10 @@ fn main() -> Result<()> {
             prettier_cmd::run(&args, cli.verbose)?;
         }
 
+        Commands::Format { args } => {
+            format_cmd::run(&args, cli.verbose)?;
+        }
+
         Commands::Playwright { args } => {
             playwright_cmd::run(&args, cli.verbose)?;
         }
@@ -1275,6 +1352,37 @@ fn main() -> Result<()> {
 
         Commands::Supabase { args } => {
             supabase_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Ruff { args } => {
+            ruff_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Pytest { args } => {
+            pytest_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Pip { args } => {
+            pip_cmd::run(&args, cli.verbose)?;
+        }
+
+        Commands::Go { command } => match command {
+            GoCommands::Test { args } => {
+                go_cmd::run_test(&args, cli.verbose)?;
+            }
+            GoCommands::Build { args } => {
+                go_cmd::run_build(&args, cli.verbose)?;
+            }
+            GoCommands::Vet { args } => {
+                go_cmd::run_vet(&args, cli.verbose)?;
+            }
+            GoCommands::Other(args) => {
+                go_cmd::run_other(&args, cli.verbose)?;
+            }
+        },
+
+        Commands::GolangciLint { args } => {
+            golangci_cmd::run(&args, cli.verbose)?;
         }
 
         Commands::Proxy { args } => {

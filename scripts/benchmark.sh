@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-RTK="./target/release/rtk"
+RTK="$(cd "$(dirname ./target/release/rtk)" && pwd)/$(basename ./target/release/rtk)"
 BENCH_DIR="./scripts/benchmark"
 
 # Mode local : générer les fichiers debug
@@ -293,6 +293,24 @@ if [ -f "package.json" ]; then
       bench "prisma generate" "prisma generate 2>&1 || true" "$RTK prisma generate"
     fi
   fi
+
+  if command -v vitest &> /dev/null || [ -f "node_modules/.bin/vitest" ]; then
+    bench "vitest run" "vitest run --reporter=json 2>&1 || true" "$RTK vitest run"
+  fi
+
+  if command -v pnpm &> /dev/null; then
+    bench "pnpm list" "pnpm list --depth 0 2>&1 || true" "$RTK pnpm list --depth 0"
+    bench "pnpm outdated" "pnpm outdated 2>&1 || true" "$RTK pnpm outdated"
+  fi
+fi
+
+# ===================
+# gh (skip si pas dispo ou pas dans un repo)
+# ===================
+if command -v gh &> /dev/null && git rev-parse --git-dir &> /dev/null; then
+  section "gh"
+  bench "gh pr list" "gh pr list 2>&1 || true" "$RTK gh pr list"
+  bench "gh run list" "gh run list 2>&1 || true" "$RTK gh run list"
 fi
 
 # ===================
@@ -311,6 +329,127 @@ if command -v kubectl &> /dev/null; then
   section "kubectl"
   bench "kubectl pods" "kubectl get pods 2>/dev/null || true" "$RTK kubectl pods"
   bench "kubectl services" "kubectl get services 2>/dev/null || true" "$RTK kubectl services"
+fi
+
+# ===================
+# Python (avec fixtures temporaires)
+# ===================
+if command -v python3 &> /dev/null && command -v ruff &> /dev/null && command -v pytest &> /dev/null; then
+  section "python"
+
+  PYTHON_FIXTURE=$(mktemp -d)
+  cd "$PYTHON_FIXTURE"
+
+  # pyproject.toml
+  cat > pyproject.toml << 'PYEOF'
+[project]
+name = "rtk-bench"
+version = "0.1.0"
+
+[tool.ruff]
+line-length = 88
+PYEOF
+
+  # sample.py avec quelques issues ruff
+  cat > sample.py << 'PYEOF'
+import os
+import sys
+import json
+
+
+def process_data(x):
+    if x == None:  # E711: comparison to None
+        return []
+    result = []
+    for i in range(len(x)):  # C416: unnecessary list comprehension
+        result.append(x[i] * 2)
+    return result
+
+def unused_function():  # F841: local variable assigned but never used
+    temp = 42
+    return None
+PYEOF
+
+  # test_sample.py
+  cat > test_sample.py << 'PYEOF'
+from sample import process_data
+
+def test_process_data():
+    assert process_data([1, 2, 3]) == [2, 4, 6]
+
+def test_process_data_none():
+    assert process_data(None) == []
+PYEOF
+
+  bench "ruff check" "ruff check . 2>&1 || true" "$RTK test ruff check ."
+  bench "pytest" "pytest -v 2>&1 || true" "$RTK test pytest -v"
+
+  cd - > /dev/null
+  rm -rf "$PYTHON_FIXTURE"
+fi
+
+# ===================
+# Go (avec fixtures temporaires)
+# ===================
+if command -v go &> /dev/null && command -v golangci-lint &> /dev/null; then
+  section "go"
+
+  GO_FIXTURE=$(mktemp -d)
+  cd "$GO_FIXTURE"
+
+  # go.mod
+  cat > go.mod << 'GOEOF'
+module bench
+
+go 1.21
+GOEOF
+
+  # main.go
+  cat > main.go << 'GOEOF'
+package main
+
+import "fmt"
+
+func Add(a, b int) int {
+    return a + b
+}
+
+func Multiply(a, b int) int {
+    return a * b
+}
+
+func main() {
+    fmt.Println(Add(2, 3))
+    fmt.Println(Multiply(4, 5))
+}
+GOEOF
+
+  # main_test.go
+  cat > main_test.go << 'GOEOF'
+package main
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+    result := Add(2, 3)
+    if result != 5 {
+        t.Errorf("Add(2, 3) = %d; want 5", result)
+    }
+}
+
+func TestMultiply(t *testing.T) {
+    result := Multiply(4, 5)
+    if result != 20 {
+        t.Errorf("Multiply(4, 5) = %d; want 20", result)
+    }
+}
+GOEOF
+
+  bench "golangci-lint" "golangci-lint run 2>&1 || true" "$RTK test golangci-lint run"
+  bench "go test" "go test -v 2>&1 || true" "$RTK test go test -v"
+
+  cd - > /dev/null
+  rm -rf "$GO_FIXTURE"
 fi
 
 # ===================
