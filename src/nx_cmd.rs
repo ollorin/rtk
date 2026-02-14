@@ -69,7 +69,7 @@ fn filter_nx_output(output: &str, args: &[String]) -> String {
     let is_test = args.iter().any(|a| a == "test" || a == "e2e");
     let is_build = args.iter().any(|a| a == "build");
     let is_serve = args.iter().any(|a| a == "serve" || a == "dev" || a == "start" || a.starts_with("start:"));
-    let is_affected = args.iter().any(|a| a == "affected");
+    let is_affected = args.iter().any(|a| a == "affected" || a.starts_with("affected:"));
 
     for line in output.lines() {
         // Skip task graph visualization
