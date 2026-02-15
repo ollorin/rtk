@@ -26,9 +26,11 @@ case "$FIRST_CMD" in
   rtk\ *|*/rtk\ *) exit 0 ;;
 esac
 
-# Skip commands with heredocs, variable assignments as the whole command, etc.
+# Skip commands with heredocs, cat redirects, variable assignments, etc.
 case "$FIRST_CMD" in
   *'<<'*) exit 0 ;;
+  cat\ \>*|cat\ \>\>*) exit 0 ;;  # Skip cat redirects (output, not read)
+  *=\$\(*) exit 0 ;;  # Skip variable assignments with command substitution
 esac
 
 # Strip leading env var assignments for pattern matching
@@ -68,6 +70,18 @@ elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+stash([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git stash/rtk git stash/')"
 elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+show([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git show/rtk git show/')"
+elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+checkout([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git checkout/rtk git checkout/')"
+elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+merge([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git merge/rtk git merge/')"
+elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+rebase([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git rebase/rtk git rebase/')"
+elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+reset([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git reset/rtk git reset/')"
+elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+tag([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git tag/rtk git tag/')"
+elif echo "$MATCH_CMD" | grep -qE '^git[[:space:]]+remote([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^git remote/rtk git remote/')"
 
 # --- GitHub CLI (added: api, release) ---
 elif echo "$MATCH_CMD" | grep -qE '^gh[[:space:]]+(pr|issue|run|api|release)([[:space:]]|$)'; then
@@ -170,6 +184,20 @@ elif echo "$MATCH_CMD" | grep -qE '^pip[[:space:]]+(list|outdated|install|show)(
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^pip /rtk pip /')"
 elif echo "$MATCH_CMD" | grep -qE '^uv[[:space:]]+pip[[:space:]]+(list|outdated|install|show)([[:space:]]|$)'; then
   REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^uv pip /rtk pip /')"
+
+# --- Deno tooling ---
+elif echo "$MATCH_CMD" | grep -qE '^deno[[:space:]]+(test|lint|check|task|run)([[:space:]]|$|2>)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^deno /rtk deno /')"
+
+# --- Nx monorepo ---
+elif echo "$MATCH_CMD" | grep -qE '^npx[[:space:]]+nx([[:space:]]|$)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^npx nx/rtk nx/')"
+elif echo "$MATCH_CMD" | grep -qE '^nx[[:space:]]+'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^nx /rtk nx /')"
+
+# --- Supabase CLI ---
+elif echo "$MATCH_CMD" | grep -qE '^supabase[[:space:]]+(start|stop|status|db|functions|gen|link|secrets)([[:space:]]|$|2>)'; then
+  REWRITTEN="${ENV_PREFIX}$(echo "$CMD_BODY" | sed 's/^supabase /rtk supabase /')"
 
 # --- Go tooling ---
 elif echo "$MATCH_CMD" | grep -qE '^go[[:space:]]+test([[:space:]]|$)'; then

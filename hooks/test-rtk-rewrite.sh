@@ -4,7 +4,7 @@
 #
 # Usage: bash ~/.claude/hooks/test-rtk-rewrite.sh
 
-HOOK="$HOME/.claude/hooks/rtk-rewrite.sh"
+HOOK="${HOOK:-$HOME/.claude/hooks/rtk-rewrite.sh}"
 PASS=0
 FAIL=0
 TOTAL=0
@@ -193,17 +193,17 @@ test_rewrite "docker exec -it db psql" \
   "docker exec -it db psql" \
   "rtk docker exec -it db psql"
 
-test_rewrite "find (NOT rewritten — different arg format)" \
+test_rewrite "find with -name" \
   "find . -name '*.ts'" \
-  ""
+  "rtk find . -name '*.ts'"
 
-test_rewrite "tree (NOT rewritten — different arg format)" \
+test_rewrite "tree src/" \
   "tree src/" \
-  ""
+  "rtk tree src/"
 
-test_rewrite "wget (NOT rewritten — different arg format)" \
+test_rewrite "wget file" \
   "wget https://example.com/file" \
-  ""
+  "rtk wget https://example.com/file"
 
 test_rewrite "gh api repos/owner/repo" \
   "gh api repos/owner/repo" \
@@ -220,6 +220,110 @@ test_rewrite "kubectl describe pod foo" \
 test_rewrite "kubectl apply -f deploy.yaml" \
   "kubectl apply -f deploy.yaml" \
   "rtk kubectl apply -f deploy.yaml"
+
+echo ""
+
+# ---- SECTION: New git commands ----
+echo "--- New git commands ---"
+test_rewrite "git checkout feature" \
+  "git checkout feature-branch" \
+  "rtk git checkout feature-branch"
+
+test_rewrite "git merge main" \
+  "git merge main" \
+  "rtk git merge main"
+
+test_rewrite "git rebase main" \
+  "git rebase main" \
+  "rtk git rebase main"
+
+test_rewrite "git reset HEAD~1" \
+  "git reset HEAD~1" \
+  "rtk git reset HEAD~1"
+
+test_rewrite "git tag v1.0.0" \
+  "git tag v1.0.0" \
+  "rtk git tag v1.0.0"
+
+test_rewrite "git remote -v" \
+  "git remote -v" \
+  "rtk git remote -v"
+
+echo ""
+
+# ---- SECTION: Deno tooling ----
+echo "--- Deno tooling ---"
+test_rewrite "deno test" \
+  "deno test" \
+  "rtk deno test"
+
+test_rewrite "deno lint" \
+  "deno lint" \
+  "rtk deno lint"
+
+test_rewrite "deno check mod.ts" \
+  "deno check mod.ts" \
+  "rtk deno check mod.ts"
+
+test_rewrite "deno task build" \
+  "deno task build" \
+  "rtk deno task build"
+
+test_rewrite "deno run server.ts" \
+  "deno run server.ts" \
+  "rtk deno run server.ts"
+
+test_rewrite "deno test with stderr" \
+  "deno test 2>&1" \
+  "rtk deno test 2>&1"
+
+echo ""
+
+# ---- SECTION: Nx monorepo ----
+echo "--- Nx monorepo ---"
+test_rewrite "npx nx build api" \
+  "npx nx build api" \
+  "rtk nx build api"
+
+test_rewrite "nx run api:test" \
+  "nx run api:test" \
+  "rtk nx run api:test"
+
+echo ""
+
+# ---- SECTION: Supabase CLI ----
+echo "--- Supabase CLI ---"
+test_rewrite "supabase start" \
+  "supabase start" \
+  "rtk supabase start"
+
+test_rewrite "supabase db push" \
+  "supabase db push" \
+  "rtk supabase db push"
+
+test_rewrite "supabase functions serve" \
+  "supabase functions serve" \
+  "rtk supabase functions serve"
+
+test_rewrite "supabase with stderr" \
+  "supabase status 2>&1" \
+  "rtk supabase status 2>&1"
+
+echo ""
+
+# ---- SECTION: Smart skip patterns ----
+echo "--- Smart skip patterns ---"
+test_rewrite "cat redirect (skip)" \
+  "cat > file.txt" \
+  ""
+
+test_rewrite "cat append redirect (skip)" \
+  "cat >> file.txt" \
+  ""
+
+test_rewrite "variable assignment (skip)" \
+  'OUTPUT=$(git status)' \
+  ""
 
 echo ""
 
