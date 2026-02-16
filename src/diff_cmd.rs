@@ -3,9 +3,17 @@ use crate::utils::truncate;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 
 /// Ultra-condensed diff - only changed lines, no context
-pub fn run(file1: &Path, file2: &Path, verbose: u8, quiet: bool) -> Result<()> {
+pub fn run(
+    file1: &Path,
+    file2: &Path,
+    verbose: u8,
+    quiet: bool,
+    ignore_all_space: bool,
+    ignore_space_change: bool,
+) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
     if verbose > 0 && !quiet {
@@ -16,9 +24,19 @@ pub fn run(file1: &Path, file2: &Path, verbose: u8, quiet: bool) -> Result<()> {
     let content2 = fs::read_to_string(file2)?;
     let raw = format!("{}\n---\n{}", content1, content2);
 
-    let lines1: Vec<&str> = content1.lines().collect();
-    let lines2: Vec<&str> = content2.lines().collect();
-    let diff = compute_diff(&lines1, &lines2);
+    // Process lines based on whitespace flags
+    let lines1: Vec<String> = content1
+        .lines()
+        .map(|l| normalize_whitespace(l, ignore_all_space, ignore_space_change))
+        .collect();
+    let lines2: Vec<String> = content2
+        .lines()
+        .map(|l| normalize_whitespace(l, ignore_all_space, ignore_space_change))
+        .collect();
+
+    let lines1_ref: Vec<&str> = lines1.iter().map(|s| s.as_str()).collect();
+    let lines2_ref: Vec<&str> = lines2.iter().map(|s| s.as_str()).collect();
+    let diff = compute_diff(&lines1_ref, &lines2_ref);
     let mut rtk = String::new();
 
     if diff.added == 0 && diff.removed == 0 {
@@ -379,4 +397,86 @@ diff --git a/b.rs b/b.rs
         let result = condense_unified_diff("");
         assert!(result.is_empty());
     }
+}
+
+/// Normalize whitespace in a line based on flags
+fn normalize_whitespace(line: &str, ignore_all: bool, ignore_change: bool) -> String {
+    if ignore_all {
+        // Remove all whitespace
+        line.chars().filter(|c| !c.is_whitespace()).collect()
+    } else if ignore_change {
+        // Collapse multiple spaces to single space, trim
+        line.split_whitespace().collect::<Vec<_>>().join(" ")
+    } else {
+        line.to_string()
+    }
+}
+
+/// Proxy to system diff for advanced flags
+pub fn run_proxy(
+    file1: &Path,
+    file2: &Path,
+    quiet: bool,
+    recursive: bool,
+    new_file: bool,
+    ignore_all_space: bool,
+    ignore_space_change: bool,
+    unified: Option<usize>,
+    extra_args: &[String],
+    verbose: u8,
+) -> Result<()> {
+    let timer = tracking::TimedExecution::start();
+
+    if verbose > 0 {
+        eprintln!("Proxying to system diff: {} vs {}", file1.display(), file2.display());
+    }
+
+    let mut cmd = Command::new("diff");
+
+    if quiet {
+        cmd.arg("-q");
+    }
+    if recursive {
+        cmd.arg("-r");
+    }
+    if new_file {
+        cmd.arg("-N");
+    }
+    if ignore_all_space {
+        cmd.arg("-w");
+    }
+    if ignore_space_change {
+        cmd.arg("-b");
+    }
+    if let Some(lines) = unified {
+        cmd.arg(format!("-u{}", lines));
+    }
+
+    cmd.arg(file1).arg(file2);
+
+    for arg in extra_args {
+        cmd.arg(arg);
+    }
+
+    let output = cmd.output()?;
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // Print output
+    if !stdout.is_empty() {
+        print!("{}", stdout);
+    }
+    if !stderr.is_empty() {
+        eprint!("{}", stderr);
+    }
+
+    timer.track(
+        &format!("diff {} {}", file1.display(), file2.display()),
+        "rtk diff (proxy)",
+        "",
+        &stdout.to_string(),
+    );
+
+    // Exit with same code as diff
+    std::process::exit(output.status.code().unwrap_or(1));
 }

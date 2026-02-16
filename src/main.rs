@@ -208,6 +208,24 @@ enum Commands {
         /// Brief mode (alias for --quiet)
         #[arg(long = "brief")]
         brief: bool,
+        /// Recursive directory comparison
+        #[arg(short = 'r', long = "recursive")]
+        recursive: bool,
+        /// Treat absent files as empty
+        #[arg(short = 'N', long = "new-file")]
+        new_file: bool,
+        /// Ignore all whitespace
+        #[arg(short = 'w', long = "ignore-all-space")]
+        ignore_all_space: bool,
+        /// Ignore changes in amount of whitespace
+        #[arg(short = 'b', long = "ignore-space-change")]
+        ignore_space_change: bool,
+        /// Unified diff format with N lines of context
+        #[arg(short = 'U', long = "unified")]
+        unified: Option<usize>,
+        /// Additional diff arguments to pass through
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        extra_args: Vec<String>,
     },
 
     /// Filter and deduplicate log output
@@ -975,10 +993,47 @@ fn main() -> Result<()> {
             find_cmd::run(&pattern, &path, max, &file_type, cli.verbose)?;
         }
 
-        Commands::Diff { file1, file2, quiet, brief } => {
+        Commands::Diff {
+            file1,
+            file2,
+            quiet,
+            brief,
+            recursive,
+            new_file,
+            ignore_all_space,
+            ignore_space_change,
+            unified,
+            extra_args,
+        } => {
             let is_quiet = quiet || brief;
+
+            // If using advanced flags or extra args, proxy to system diff
+            let needs_proxy = recursive || new_file || !extra_args.is_empty() || unified.is_some();
+
             if let Some(f2) = file2 {
-                diff_cmd::run(&file1, &f2, cli.verbose, is_quiet)?;
+                if needs_proxy {
+                    diff_cmd::run_proxy(
+                        &file1,
+                        &f2,
+                        is_quiet,
+                        recursive,
+                        new_file,
+                        ignore_all_space,
+                        ignore_space_change,
+                        unified,
+                        &extra_args,
+                        cli.verbose
+                    )?;
+                } else {
+                    diff_cmd::run(
+                        &file1,
+                        &f2,
+                        cli.verbose,
+                        is_quiet,
+                        ignore_all_space,
+                        ignore_space_change
+                    )?;
+                }
             } else {
                 diff_cmd::run_stdin(cli.verbose)?;
             }
