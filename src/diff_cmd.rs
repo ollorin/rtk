@@ -5,10 +5,10 @@ use std::fs;
 use std::path::Path;
 
 /// Ultra-condensed diff - only changed lines, no context
-pub fn run(file1: &Path, file2: &Path, verbose: u8) -> Result<()> {
+pub fn run(file1: &Path, file2: &Path, verbose: u8, quiet: bool) -> Result<()> {
     let timer = tracking::TimedExecution::start();
 
-    if verbose > 0 {
+    if verbose > 0 && !quiet {
         eprintln!("Comparing: {} vs {}", file1.display(), file2.display());
     }
 
@@ -22,8 +22,11 @@ pub fn run(file1: &Path, file2: &Path, verbose: u8) -> Result<()> {
     let mut rtk = String::new();
 
     if diff.added == 0 && diff.removed == 0 {
-        rtk.push_str("✅ Files are identical");
-        println!("{}", rtk);
+        // Files are identical
+        if !quiet {
+            rtk.push_str("✅ Files are identical");
+            println!("{}", rtk);
+        }
         timer.track(
             &format!("diff {} {}", file1.display(), file2.display()),
             "rtk diff",
@@ -31,6 +34,18 @@ pub fn run(file1: &Path, file2: &Path, verbose: u8) -> Result<()> {
             &rtk,
         );
         return Ok(());
+    }
+
+    // Files differ - in quiet mode, report and exit with code 1
+    if quiet {
+        println!("Files {} and {} differ", file1.display(), file2.display());
+        timer.track(
+            &format!("diff -q {} {}", file1.display(), file2.display()),
+            "rtk diff -q",
+            &raw,
+            "Files differ",
+        );
+        std::process::exit(1);
     }
 
     rtk.push_str(&format!("📊 {} → {}\n", file1.display(), file2.display()));

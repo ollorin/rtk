@@ -202,6 +202,12 @@ enum Commands {
         file1: PathBuf,
         /// Second file (optional if stdin)
         file2: Option<PathBuf>,
+        /// Quiet mode: only report if files differ (exit code 0=same, 1=different)
+        #[arg(short = 'q', long = "quiet")]
+        quiet: bool,
+        /// Brief mode (alias for --quiet)
+        #[arg(long = "brief")]
+        brief: bool,
     },
 
     /// Filter and deduplicate log output
@@ -969,9 +975,10 @@ fn main() -> Result<()> {
             find_cmd::run(&pattern, &path, max, &file_type, cli.verbose)?;
         }
 
-        Commands::Diff { file1, file2 } => {
+        Commands::Diff { file1, file2, quiet, brief } => {
+            let is_quiet = quiet || brief;
             if let Some(f2) = file2 {
-                diff_cmd::run(&file1, &f2, cli.verbose)?;
+                diff_cmd::run(&file1, &f2, cli.verbose, is_quiet)?;
             } else {
                 diff_cmd::run_stdin(cli.verbose)?;
             }
